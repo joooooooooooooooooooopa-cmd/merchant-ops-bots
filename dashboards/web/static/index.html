@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpsDashboard</title>
+<style>
+  :root{--bg:#0f1419;--card:#1a2029;--card2:#222b36;--line:#2c3744;--txt:#e6edf3;
+    --mut:#9aa7b4;--acc:#3ea6ff;--ok:#39d98a;--warn:#ffb454;--red:#ff6b6b;--gold:#ffd479;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.5}
+  a{color:var(--acc)}
+  .top{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5}
+  .top h1{font-size:18px;margin:0}.top .sp{flex:1}
+  .lock{color:var(--mut);font-size:13px}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card2);color:var(--txt);border-radius:9px;padding:8px 14px}
+  button.acc{background:var(--acc);color:#06121f;border-color:var(--acc);font-weight:700}
+  button.ghost{background:transparent}
+  button:hover{filter:brightness(1.1)}
+  .wrap{max-width:1180px;margin:0 auto;padding:20px 22px}
+  .tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+  .tab{padding:8px 16px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--mut)}
+  .tab.on{background:var(--acc);color:#06121f;border-color:var(--acc);font-weight:700}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .seg button{border:none;border-radius:0;background:var(--card)}
+  .seg button.on{background:var(--acc);color:#06121f;font-weight:700}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .card.click{cursor:pointer}.card.click:hover{border-color:var(--acc)}
+  .card.risk{border-color:var(--red)}
+  .live{display:inline-block;background:#15351f;color:var(--ok);border-radius:7px;padding:2px 8px;font-size:12px;font-weight:700}
+  .card h3{margin:0 0 10px;font-size:16px;display:flex;align-items:center;gap:8px}
+  .row{display:flex;justify-content:space-between;font-size:14px;padding:3px 0}
+  .row .k{color:var(--mut)}
+  .big{font-size:22px;font-weight:700}
+  .pill{display:inline-block;background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:2px 9px;font-size:12px;margin:2px 4px 2px 0}
+  .pill.g{border-color:var(--ok);color:var(--ok)}.pill.r{border-color:var(--red);color:var(--red)}.pill.y{border-color:var(--warn);color:var(--warn)}
+  .mut{color:var(--mut)}.small{font-size:13px}
+  .g{color:var(--ok)}.y{color:var(--warn)}.r{color:var(--red)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}th{color:var(--mut);font-weight:600}
+  .badge{display:inline-block;border-radius:7px;padding:2px 9px;font-size:12px;font-weight:700}
+  .b-lead{background:#2a3340;color:var(--mut)}.b-integration{background:#243a4d;color:var(--acc)}
+  .b-live{background:#15351f;color:var(--ok)}.b-paused{background:#3a2a12;color:var(--warn)}
+  input,select,textarea{font:inherit;background:#0c1118;border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 10px;width:100%}
+  .modal{position:fixed;inset:0;background:rgba(4,8,12,.72);display:none;align-items:center;justify-content:center;z-index:20;padding:20px}
+  .modal.on{display:flex}
+  .sheet{background:var(--card);border:1px solid var(--line);border-radius:16px;max-width:720px;width:100%;max-height:88vh;overflow:auto;padding:22px 24px}
+  .center{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center}
+  .err{color:var(--red);font-size:14px;min-height:18px}
+  .flex{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .timeline{border-left:2px solid var(--line);padding-left:14px;margin:8px 0}
+  .timeline .ev{font-size:13px;margin:6px 0}.timeline .ev .t{color:var(--mut);font-size:12px}
+  .hint{color:var(--mut);font-size:12px}
+  .kpi{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+  .kt{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 16px;min-width:128px}
+  .kt.wide{flex:1;min-width:260px}
+  .kn{font-size:22px;font-weight:700;color:var(--acc)}.kl{color:var(--mut);font-size:13px}
+  .bar{background:var(--card2);border-radius:5px;height:10px;width:130px;overflow:hidden}
+  .bar>div{background:var(--acc);height:100%}
+  .sell{background:#1a2b1f;border:1px solid var(--ok);border-radius:10px;padding:10px 14px;margin:8px 0}
+  .ai{display:flex;gap:8px;align-items:center;font-size:14px;margin:6px 0}
+  .ai .chk{cursor:pointer;user-select:none;flex:0 0 auto}
+  .ai .txt{flex:1}
+  .ai.done .txt{opacity:.45;text-decoration:line-through}
+  .cl-row{margin:6px 0}
+  .cl-row .cl-head{display:flex;gap:8px;align-items:center;font-size:14px}
+  .cl-row.done .cl-head .txt{opacity:.45;text-decoration:line-through}
+  .cl-row .clkbl{cursor:pointer}
+  .cl-row .clkbl:hover{color:var(--acc)}
+  .cl-row .caret{display:inline-block;width:14px;color:var(--mut);transition:transform .15s}
+  .cl-body{margin:8px 0 14px 28px;padding:12px 14px;background:#0c1118;border-left:3px solid var(--acc);border-radius:6px;font-size:13px;line-height:1.55;white-space:pre-wrap;color:#cfd8e3}
+  .cl-actions{margin-top:10px}
+  .cl-actions button.small{font-size:12px;padding:4px 10px}
+  .note{display:flex;gap:8px;align-items:flex-start;font-size:13px;margin:5px 0;background:#0c1118;border-radius:8px;padding:7px 10px}
+  @media (max-width:640px){
+    body{font-size:15px}
+    .top{flex-wrap:wrap;padding:10px 12px;gap:8px}.top h1{font-size:16px}.top .lock{display:none}
+    .wrap{padding:14px 12px}
+    .grid{grid-template-columns:1fr}
+    .kpi{flex-direction:column}.kt,.kt.wide{min-width:0;width:100%}
+    .tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+    .tab{white-space:nowrap;flex:0 0 auto}
+    .sheet{max-width:100%;padding:16px 14px;max-height:92vh}
+    table{font-size:12px}td,th{padding:5px 6px}
+    input,select,textarea{font-size:16px}
+    .modal{padding:8px}
+  }
+</style>
+</head>
+<body>
+
+<div id="auth" class="center">
+  <h1 style="font-size:26px;margin:0">🔐 OpsDashboard</h1>
+  <div class="mut">Закрытый дашборд · вход по passkey · доступ только через SSH-туннель</div>
+  <div id="auth-actions" class="flex"></div>
+  <div id="auth-err" class="err"></div>
+</div>
+
+<div id="appwrap" style="display:none">
+  <div class="top">
+    <h1>📊 OpsDashboard</h1>
+    <span class="lock">🔒 read-only Core · локальный конструктор</span>
+    <span class="sp"></span>
+    <span id="stamp" class="lock" style="margin-right:8px"></span>
+    <button class="ghost" onclick="openReport()" title="Сводка для начальства">📊 Отчёт</button>
+    <button class="ghost" onclick="refresh()" title="Перетянуть свежие данные из Core">🔄 Обновить</button>
+    <button class="ghost" onclick="logout()">Выйти</button>
+  </div>
+  <div class="wrap">
+    <div class="tabs">
+      <div class="tab on" data-t="monday" onclick="tab('monday')">🗓 Понедельник</div>
+      <div class="tab" data-t="merch" onclick="tab('merch')">🏪 Мерчи</div>
+      <div class="tab" data-t="prov" onclick="tab('prov')">🏦 Провайдеры</div>
+      <div class="tab" data-t="catalog" onclick="tab('catalog')">🛒 Каталог</div>
+      <div class="tab" data-t="score" onclick="tab('score')">📈 Скоринг</div>
+      <div class="tab" data-t="matrix" onclick="tab('matrix')">🔢 Матрица</div>
+      <div class="tab" data-t="trends" onclick="tab('trends')">📉 Тренды</div>
+      <div class="tab" data-t="wd" onclick="tab('wd')">💸 Выплаты</div>
+      <div class="tab" data-t="constr" onclick="tab('constr')">🧩 Конструктор</div>
+    </div>
+
+    <div id="t-monday">
+      <div id="kpi-m" class="kpi"></div>
+      <h2 id="monday-h" style="margin:6px 0 14px">🗓 Что сделать сегодня</h2>
+      <div id="monday-board"></div>
+    </div>
+
+    <div id="t-trends" style="display:none"><div id="trends-wrap"></div></div>
+
+    <div id="t-wd" style="display:none">
+      <div class="flex" style="margin-bottom:14px"><span class="mut small">Период:</span>
+        <div class="seg"><button data-d="1" onclick="setPeriod(1)">Сутки</button>
+          <button data-d="7" onclick="setPeriod(7)">7д</button><button data-d="30" onclick="setPeriod(30)">30д</button></div></div>
+      <div class="card"><div id="wd-wrap"></div></div>
+    </div>
+
+    <div id="t-merch" style="display:none">
+      <div id="kpi" class="kpi"></div>
+      <div class="flex" style="margin-bottom:14px">
+        <span class="mut small">Период:</span>
+        <div class="seg" id="period">
+          <button class="on" data-d="1" onclick="setPeriod(1)">Сутки</button>
+          <button data-d="7" onclick="setPeriod(7)">7д</button>
+          <button data-d="30" onclick="setPeriod(30)">30д</button>
+        </div>
+        <input id="merch-search" placeholder="🔍 поиск мерча" oninput="renderMerch()" style="max-width:180px">
+        <select id="merch-sort" onchange="renderMerch()" style="max-width:170px">
+          <option value="turnover">↓ оборот</option>
+          <option value="total">↓ заявки</option>
+          <option value="conv">↓ конверсия</option>
+          <option value="risk">🚩 риск сверху</option>
+        </select>
+        <span id="merch-status" class="hint"></span>
+      </div>
+      <div id="merch-grid" class="grid"></div>
+    </div>
+
+    <div id="t-score" style="display:none">
+      <div class="flex" style="margin-bottom:14px"><span class="mut small">Период:</span>
+        <div class="seg"><button data-d="1" class="on" onclick="setPeriod(1)">Сутки</button>
+          <button data-d="7" onclick="setPeriod(7)">7д</button><button data-d="30" onclick="setPeriod(30)">30д</button></div></div>
+      <div class="card"><div id="score-grid"></div></div>
+    </div>
+
+    <div id="t-matrix" style="display:none">
+      <div class="flex" style="margin-bottom:14px"><span class="mut small">Период:</span>
+        <div class="seg"><button data-d="1" class="on" onclick="setPeriod(1)">Сутки</button>
+          <button data-d="7" onclick="setPeriod(7)">7д</button><button data-d="30" onclick="setPeriod(30)">30д</button></div></div>
+      <div class="card"><div id="matrix-wrap"></div></div>
+    </div>
+
+    <div id="t-prov" style="display:none"><div id="prov-grid" class="grid"></div></div>
+
+    <div id="t-catalog" style="display:none">
+      <div class="flex" style="margin-bottom:14px"><span class="mut small">Период (для «льют/продать»):</span>
+        <div class="seg"><button data-d="1" class="on" onclick="setPeriod(1)">Сутки</button>
+          <button data-d="7" onclick="setPeriod(7)">7д</button><button data-d="30" onclick="setPeriod(30)">30д</button></div></div>
+      <div id="catalog-grid" class="grid"></div>
+    </div>
+
+    <div id="t-constr" style="display:none">
+      <div class="card" style="margin-bottom:14px">
+        <div class="flex">
+          <input id="new-name" placeholder="Новый мерч на интеграцию — название" style="max-width:340px">
+          <select id="new-stage" style="max-width:160px">
+            <option value="lead">lead</option><option value="integration">integration</option>
+            <option value="live">live</option><option value="paused">paused</option>
+          </select>
+          <button class="acc" onclick="addTracked()">+ Завести</button>
+        </div>
+      </div>
+      <div id="constr-list" class="grid"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal" class="modal"><div class="sheet" id="sheet"></div></div>
+
+<script>
+// ── base64url <-> ArrayBuffer ──
+function b2b(s){s=s.replace(/-/g,'+').replace(/_/g,'/');const p=s.length%4;if(p)s+='='.repeat(4-p);
+  const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u.buffer;}
+function buf2b(buf){const u=new Uint8Array(buf);let s='';for(let i=0;i<u.length;i++)s+=String.fromCharCode(u[i]);
+  return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+
+async function api(path,method,body){
+  const r=await fetch(path,{method:method||'GET',headers:body?{'Content-Type':'application/json'}:{},
+    body:body?JSON.stringify(body):undefined});
+  if(r.status===401){showAuth();throw new Error('unauth');}
+  if(!r.ok){let d='';try{d=(await r.json()).detail}catch(e){}throw new Error(d||('HTTP '+r.status));}
+  return r.json();
+}
+
+// ── passkey ──
+async function doRegister(){
+  err('');
+  const {options,flow}=await api('/api/auth/register/options','POST');
+  const o=JSON.parse(options);
+  o.challenge=b2b(o.challenge); o.user.id=b2b(o.user.id);
+  (o.excludeCredentials||[]).forEach(c=>c.id=b2b(c.id));
+  const c=await navigator.credentials.create({publicKey:o});
+  const credential={id:c.id,rawId:buf2b(c.rawId),type:c.type,
+    response:{attestationObject:buf2b(c.response.attestationObject),clientDataJSON:buf2b(c.response.clientDataJSON)},
+    clientExtensionResults:c.getClientExtensionResults?c.getClientExtensionResults():{}};
+  await api('/api/auth/register/verify','POST',{flow,credential,label:'passkey'});
+  boot();
+}
+async function doLogin(){
+  err('');
+  const {options,flow}=await api('/api/auth/login/options','POST');
+  const o=JSON.parse(options); o.challenge=b2b(o.challenge);
+  (o.allowCredentials||[]).forEach(c=>c.id=b2b(c.id));
+  const a=await navigator.credentials.get({publicKey:o});
+  const credential={id:a.id,rawId:buf2b(a.rawId),type:a.type,
+    response:{authenticatorData:buf2b(a.response.authenticatorData),clientDataJSON:buf2b(a.response.clientDataJSON),
+      signature:buf2b(a.response.signature),userHandle:a.response.userHandle?buf2b(a.response.userHandle):null},
+    clientExtensionResults:a.getClientExtensionResults?a.getClientExtensionResults():{}};
+  await api('/api/auth/login/verify','POST',{flow,credential});
+  boot();
+}
+async function logout(){await api('/api/auth/logout','POST');location.reload();}
+function err(m){document.getElementById('auth-err').textContent=m||'';}
+function showAuth(){document.getElementById('appwrap').style.display='none';document.getElementById('auth').style.display='flex';}
+
+async function start(){
+  const st=await api('/api/auth/state');
+  if(st.authenticated){boot();return;}
+  const act=document.getElementById('auth-actions');
+  if(st.has_credentials){
+    act.innerHTML='<button class="acc" id="bl">Войти по passkey</button>';
+    document.getElementById('bl').onclick=()=>doLogin().catch(e=>err(e.message));
+  }else{
+    act.innerHTML='<button class="acc" id="br">Создать passkey (первый вход)</button>';
+    document.getElementById('br').onclick=()=>doRegister().catch(e=>err(e.message));
+  }
+  showAuth();
+}
+
+// ── app ──
+let PERIOD=1, PROVIDERS=[], LIVE_MERCHANTS=[], LIVE_STATS={}, CURRENT_TAB='merch', ALL_MERCH=[];
+function refresh(){
+  PROVIDERS=[]; LIVE_MERCHANTS=[];
+  if(CURRENT_TAB==='monday')loadMonday();
+  else if(CURRENT_TAB==='trends')loadTrends();
+  else if(CURRENT_TAB==='merch')loadMerch();
+  else if(CURRENT_TAB==='prov')loadProv();
+  else if(CURRENT_TAB==='catalog')loadCatalog();
+  else if(CURRENT_TAB==='score')loadScore();
+  else if(CURRENT_TAB==='matrix')loadMatrix();
+  else if(CURRENT_TAB==='wd')loadWithdrawals();
+  else loadConstr();
+}
+function boot(){
+  document.getElementById('auth').style.display='none';
+  document.getElementById('appwrap').style.display='block';
+  const sp=parseInt(localStorage.getItem('kdash_period')||'1'); if([1,7,30].indexOf(sp)>=0)PERIOD=sp;
+  document.querySelectorAll('.seg button[data-d]').forEach(b=>b.classList.toggle('on',+b.dataset.d===PERIOD));
+  if(!window._autoRefresh)window._autoRefresh=setInterval(()=>{if(!document.hidden)refresh();},5*60*1000);
+  const st=localStorage.getItem('kdash_tab')||'monday';
+  tab(['monday','merch','prov','catalog','score','matrix','trends','wd','constr'].indexOf(st)>=0?st:'monday');
+}
+function tab(t){
+  CURRENT_TAB=t; try{localStorage.setItem('kdash_tab',t);}catch(e){}
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x.dataset.t===t));
+  ['monday','merch','prov','catalog','score','matrix','trends','wd','constr'].forEach(x=>document.getElementById('t-'+x).style.display=x===t?'block':'none');
+  if(t==='monday')loadMonday();
+  if(t==='merch')loadMerch();
+  if(t==='prov')loadProv();
+  if(t==='catalog')loadCatalog();
+  if(t==='score')loadScore();
+  if(t==='matrix')loadMatrix();
+  if(t==='trends')loadTrends();
+  if(t==='wd')loadWithdrawals();
+  if(t==='constr')loadConstr();
+}
+function setPeriod(d){PERIOD=d;try{localStorage.setItem('kdash_period',d);}catch(e){}
+  document.querySelectorAll('.seg button[data-d]').forEach(b=>b.classList.toggle('on',+b.dataset.d===d));
+  if(CURRENT_TAB==='score')loadScore();else if(CURRENT_TAB==='matrix')loadMatrix();else if(CURRENT_TAB==='catalog')loadCatalog();else loadMerch();}
+function fmt(n){return (n||0).toLocaleString('ru-RU');}
+function stamp(){const s=document.getElementById('stamp');if(s)s.textContent='обновлено '+new Date().toLocaleTimeString('ru-RU');}
+async function loadNotes(mid){
+  const el=document.getElementById('merch-notes'); if(!el)return;
+  try{const d=await api('/api/notes/'+mid);
+    el.innerHTML=d.notes.length?d.notes.map(n=>`<div class="note"><span style="flex:1">${esc(n.text)} <span class="mut" style="font-size:11px">· ${new Date(n.ts*1000).toLocaleDateString('ru-RU')}</span></span><a class="mut" style="cursor:pointer" onclick="delNote(${n.id},'${esc(mid)}')">✕</a></div>`).join(''):'<span class="mut small">нет заметок</span>';
+  }catch(e){el.innerHTML='<span class="r small">не загрузить</span>';}
+}
+async function addNote(mid){const i=document.getElementById('note-input');const t=i.value.trim();if(!t)return;await api('/api/notes/'+mid,'POST',{text:t});i.value='';loadNotes(mid);}
+async function delNote(id,mid){await api('/api/note/'+id,'DELETE');loadNotes(mid);}
+
+async function loadKpi(target){
+  target=target||'kpi';
+  try{
+    const o=await api('/api/overview?days='+(target==='kpi-m'?1:PERIOD));
+    const dv=o.dvol==null?'':(o.dvol>0?' <span class="g">↑'+o.dvol+'%</span>':o.dvol<0?' <span class="r">↓'+Math.abs(o.dvol)+'%</span>':'');
+    const up=o.up.map(m=>`<span class="pill g">↑ ${esc(m.name)} +${m.delta}%</span>`).join('');
+    const down=o.down.map(m=>`<span class="pill r">↓ ${esc(m.name)} ${m.delta}%</span>`).join('');
+    const risk=o.at_risk.length?`<span class="pill r">🚩 ${o.at_risk.map(esc).join(', ')}</span>`:'';
+    const mv=(up||down||risk)?(up+' '+down+' '+risk):'<span class="mut small">спокойно</span>';
+    document.getElementById(target).innerHTML=`
+      <div class="kt"><div class="kn">${fmt(o.turnover)} ₽</div><div class="kl">оборот${dv}</div></div>
+      <div class="kt"><div class="kn">${fmt(o.total)}</div><div class="kl">заявок</div></div>
+      <div class="kt"><div class="kn">${o.conv}%</div><div class="kl">конверсия</div></div>
+      <div class="kt"><div class="kn">${o.merchants}</div><div class="kl">мерчей льют</div></div>
+      <div class="kt wide"><div class="kl">движения дня</div><div style="margin-top:4px">${mv}</div></div>`;
+  }catch(e){}
+}
+const DAYS=['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+let DONE=new Set();
+async function loadMonday(){
+  loadKpi('kpi-m');
+  const dn=DAYS[new Date().getDay()];
+  const tabEl=document.querySelector('.tab[data-t="monday"]'); if(tabEl)tabEl.innerHTML='🗓 '+dn;
+  const h=document.getElementById('monday-h'); if(h)h.textContent='🗓 '+dn+' — что сделать';
+  const b=document.getElementById('monday-board'); b.innerHTML='<div class="mut">Загрузка…</div>';
+  let d; try{ d=await api('/api/monday?days=1'); }
+  catch(e){ b.innerHTML='<div class="r">⚠️ Не загрузилось ('+esc(e.message)+'). Нажмите 🔄 Обновить.</div>'; return; }
+  DONE=new Set(d.done||[]);
+  const item=(key,inner,mid)=>{const dd=DONE.has(key);
+    return `<div class="ai${dd?' done':''}"><span class="chk" onclick="toggleDone('${key}')">${dd?'✅':'⬜'}</span>`+
+      `<span class="txt"${mid?` onclick="openMerchById('${esc(mid)}')" style="cursor:pointer"`:''}>${inner}</span></div>`;};
+  const risk=d.at_risk.length?d.at_risk.map(a=>item('risk:'+a.mid,`🚩 <b>${esc(a.name)}</b> — ${esc(a.reason)}`,a.mid)).join(''):'<span class="mut small">никто не просел ✅</span>';
+  const cross=d.cross.length?d.cross.map(c=>item('cross:'+c.mid,`🎯 <b>${esc(c.name)}</b> → ${c.gaps.map(esc).join(', ')}`,c.mid)).join(''):'<span class="mut small">—</span>';
+  const unset=d.unset.length?d.unset.map(u=>item('unset:'+u.mid,`⚪ <b>${esc(u.name)}</b> — ${u.count} эндп. без ставки`,u.mid)).join(''):'<span class="mut small">всё проставлено ✅</span>';
+  const integ=d.integrations.length?d.integrations.map(i=>`<div class="small" style="margin:5px 0">🧩 <b>${esc(i.name)}</b> <span class="badge b-${i.stage}">${i.stage}</span> ${(i.sold||[]).length?'· продано '+i.sold.length:''}</div>`).join(''):'<span class="mut small">нет активных интеграций</span>';
+  const events=(d.events||[]).map(e=>`<div class="ai"><span class="txt"${e.mid?` onclick="openMerchById('${esc(e.mid)}')" style="cursor:pointer"`:''}>${e.icon} <b>${esc(e.merchant)}</b> — ${esc(e.text)}</span></div>`).join('')||'<span class="mut small">спокойно ✅</span>';
+  const cl=(d.checklist||[]).map(c=>{
+    const hasBody=!!(c.body&&c.body.trim());
+    const titleCls='txt'+(hasBody?' clkbl':'');
+    const titleClick=hasBody?` onclick="toggleBody(${c.id})"`:'';
+    const caret=hasBody?'<span class="caret" id="caret-'+c.id+'">▸</span> ':'';
+    const bodyEsc=hasBody?esc(c.body):'';
+    const bodyDiv=hasBody?`<div class="cl-body" id="body-${c.id}" style="display:none">${bodyEsc}<div class="cl-actions"><button class="acc small" onclick="copyBody(${c.id})">📋 Скопировать</button></div></div>`:'';
+    return `<div class="cl-row ai${c.done?' done':''}"><div class="cl-head"><span class="chk" onclick="toggleCheck(${c.id},${c.done?0:1})">${c.done?'✅':'⬜'}</span><span class="${titleCls}"${titleClick}>${caret}${esc(c.text)}</span><a class="mut" style="cursor:pointer" onclick="delCheck(${c.id})">✕</a></div>${bodyDiv}</div>`;
+  }).join('')||'<span class="mut small">пусто — добавь задачу ниже</span>';
+  b.innerHTML=`<div class="grid">
+    <div class="card"><h3 class="r">🚩 Просели — разобраться</h3>${risk}</div>
+    <div class="card"><h3 class="g">🎯 Допродать</h3>${cross}</div>
+    <div class="card"><h3 class="y">⚪ Проставить ставки</h3>${unset}</div>
+    <div class="card"><h3>🧩 Интеграции в работе</h3>${integ}</div>
+    <div class="card" style="grid-column:1/-1"><h3>🔔 События дня</h3>${events}</div>
+    <div class="card" style="grid-column:1/-1"><h3>📝 Мой чеклист на ${dn}</h3>${cl}
+      <div class="flex" style="margin-top:10px"><input id="cl-input" placeholder="добавить задачу и Enter…" onkeydown="if(event.key==='Enter')addCheck()" style="max-width:420px"><button class="acc" onclick="addCheck()">+ Добавить</button></div></div></div>`;
+  stamp();
+}
+async function toggleDone(key){await api('/api/done','POST',{key,done:!DONE.has(key)});loadMonday();}
+async function toggleCheck(id,done){await api('/api/checklist/'+id,'PATCH',{done:!!done});loadMonday();}
+async function addCheck(){const i=document.getElementById('cl-input');const t=i.value.trim();if(!t)return;await api('/api/checklist','POST',{text:t});loadMonday();}
+async function delCheck(id){await api('/api/checklist/'+id,'DELETE');loadMonday();}
+function toggleBody(id){
+  const el=document.getElementById('body-'+id);const c=document.getElementById('caret-'+id);
+  if(!el)return;
+  const open=el.style.display==='none';
+  el.style.display=open?'block':'none';
+  if(c)c.textContent=open?'▾':'▸';
+}
+function copyBody(id){
+  const el=document.getElementById('body-'+id);if(!el)return;
+  const text=el.innerText.replace(/\n*📋 Скопировать\s*$/,'').trim();
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn=el.querySelector('button');if(btn){const o=btn.innerText;btn.innerText='✓ Скопировано';setTimeout(()=>btn.innerText=o,1500);}
+  });
+}
+async function openMerchById(mid){
+  try{const d=await api('/api/merchants?days=1');const m=(d.merchants||[]).find(x=>x.mid===mid);
+    if(m){openMerch(m);return;}}catch(e){}
+  openMerch({mid:mid,name:'мерч',total:0,success:0,conv:0,turnover:0,issued:0,risk:false,risk_reason:''});
+}
+async function loadTrends(){
+  const w=document.getElementById('trends-wrap'); w.innerHTML='<div class="mut">Загрузка…</div>';
+  let d,ms; try{ d=await api('/api/conv-trend?days=14'); ms=await api('/api/merchants?days=7'); }
+  catch(e){ w.innerHTML='<div class="r">⚠️ Не загрузилось. Нажмите 🔄 Обновить.</div>'; return; }
+  const t=d.trend, maxc=Math.max(60,...t.map(x=>x.conv)), maxt=Math.max(1,...t.map(x=>x.turnover));
+  const bar=(label,val,h,cc)=>`<div style="display:flex;flex-direction:column;align-items:center;justify-content:flex-end;min-width:30px">
+    <div style="font-size:11px;color:var(--mut)">${label}</div>
+    <div style="width:22px;height:${h}px;background:${cc};border-radius:4px 4px 0 0"></div>
+    <div style="font-size:10px;color:var(--mut);margin-top:3px">${val}</div></div>`;
+  const convBars=t.map(x=>bar(x.conv+'%',x.date.slice(5),Math.round(x.conv/maxc*110),x.conv>=40?'var(--ok)':x.conv>=20?'var(--warn)':'var(--red)')).join('');
+  const turnBars=t.map(x=>bar(Math.round(x.turnover/1000)+'k',x.date.slice(5),Math.round(x.turnover/maxt*110),'var(--acc)')).join('');
+  const drop=ms.merchants.filter(m=>m.risk).map(m=>`<div class="small r" style="margin:4px 0">🚩 ${esc(m.name)} — ${esc(m.risk_reason)}</div>`).join('')||'<span class="mut small">никто значимо не просел за неделю ✅</span>';
+  w.innerHTML=`<div class="card"><h3>📉 Конверсия по дням (14д)</h3>
+    <div style="display:flex;gap:4px;align-items:flex-end;overflow-x:auto;padding-top:8px">${convBars}</div></div>
+    <div class="card" style="margin-top:14px"><h3>💰 Оборот по дням (14д)</h3>
+    <div style="display:flex;gap:4px;align-items:flex-end;overflow-x:auto;padding-top:8px">${turnBars}</div></div>
+    <div class="card" style="margin-top:14px"><h3>🚩 Кто просел за неделю (7д vs прошлые 7д)</h3>${drop}</div>`;
+  stamp();
+}
+async function loadWithdrawals(){
+  const w=document.getElementById('wd-wrap'); w.innerHTML='<div class="mut">Загрузка…</div>';
+  let d; try{ d=await api('/api/withdrawals?days='+PERIOD); }
+  catch(e){ w.innerHTML='<div class="r">⚠️ Не загрузилось. Нажмите 🔄 Обновить.</div>'; return; }
+  const rows=d.withdrawals.map(x=>`<tr><td>${esc(x.merchant)}</td><td>${fmt(x.total)}</td>
+    <td class="g">${fmt(x.done)}</td><td class="y">${fmt(x.pending)}</td><td class="r">${fmt(x.rejected)}</td>
+    <td><b>${fmt(x.paid)}</b></td></tr>`).join('');
+  w.innerHTML=`<div class="small mut" style="margin-bottom:8px">Выплаты (withdrawals) за период.</div>
+    <table><tr><th>Мерч</th><th>Всего</th><th>Выплачено</th><th>В ожид.</th><th>Отклонено</th><th>Сумма ₽</th></tr>
+    ${rows||'<tr><td class="mut">за период выплат нет</td></tr>'}</table>`;
+  stamp();
+}
+async function openReport(){
+  sheet('<div class="mut">Готовлю отчёт…</div>');
+  const r=await api('/api/boss-report?days=7'); const o=r.overview, cs=r.constructor; window._rep=r;
+  const top=r.top.map((m,i)=>`<tr><td>${i+1}. ${esc(m.name)}</td><td>${fmt(m.turnover)} ₽</td><td>${m.conv}%</td><td>${fmt(m.total)}</td></tr>`).join('');
+  const dv=o.dvol==null?'':(o.dvol>0?' <span class="g">↑'+o.dvol+'%</span>':o.dvol<0?' <span class="r">↓'+Math.abs(o.dvol)+'%</span>':'');
+  sheet(`<div class="flex" style="justify-content:space-between"><h2>📊 Отчёт за неделю</h2><div class="flex"><button class="acc" onclick="exportReport()">📥 CSV</button><button class="ghost" onclick="closeSheet()">✕</button></div></div>
+    <div class="kpi">
+      <div class="kt"><div class="kn">${fmt(o.turnover)} ₽</div><div class="kl">оборот 7д${dv}</div></div>
+      <div class="kt"><div class="kn">${o.conv}%</div><div class="kl">конверсия</div></div>
+      <div class="kt"><div class="kn">${fmt(o.total)}</div><div class="kl">заявок</div></div>
+      <div class="kt"><div class="kn">${o.merchants}</div><div class="kl">мерчей</div></div></div>
+    <h3 style="margin-top:8px">🏆 Топ мерчей</h3>
+    <table><tr><th>Мерч</th><th>Оборот</th><th>Конв</th><th>Заявки</th></tr>${top}</table>
+    <h3 style="margin-top:14px">🎯 Воронка возможностей</h3>
+    <div class="small">Допродаж (метод × мерч): <b>${r.opp_cross}</b> · эндпоинтов без ставки: <b>${r.opp_unset}</b>${r.at_risk.length?' · на риске: <b>'+r.at_risk.map(esc).join(', ')+'</b>':''}</div>
+    <h3 style="margin-top:14px">🧩 Интеграции (конструктор)</h3>
+    <div class="small">Ведётся: <b>${cs.total}</b> · продано методов: <b>${cs.sold_methods}</b> · стадии: ${Object.entries(cs.by_stage).map(([k,v])=>k+' '+v).join(', ')||'—'}</div>
+    <div class="hint" style="margin-top:12px">📸 Скриншоть этот экран для начальства.</div>`);
+}
+function genOffer(){
+  const m=window._mcur&&window._mcur.m, d=window._mcur&&window._mcur.d; if(!d)return;
+  const set=d.endpoints.filter(e=>e.is_set), seen={}, cur=[];
+  set.forEach(e=>{const k=e.method+'|'+e.percent; if(!seen[k]){seen[k]=1; cur.push('• '+e.method+' — '+e.percent+'%');}});
+  const gaps=((d.offer&&d.offer.gap)||[]).map(g=>'• '+g.cat);
+  let t='Здравствуйте!\nПо вашему проекту '+m.name+' можем подключить обработку по методам:\n\n';
+  if(cur.length)t+='Сейчас подключено:\n'+cur.join('\n')+'\n\n';
+  if(gaps.length)t+='Можем дополнительно подключить:\n'+gaps.join('\n')+'\n(ставки — по согласованию)\n\n';
+  t+='Готовы обсудить условия и запустить.';
+  sheet(`<div class="flex" style="justify-content:space-between"><h2>📋 Оффер: ${esc(m.name)}</h2><button class="ghost" onclick="closeSheet()">✕</button></div>
+    <textarea id="offer-text" style="width:100%;height:280px;font-family:monospace;font-size:13px">${esc(t)}</textarea>
+    <div class="flex" style="margin-top:10px"><button class="acc" onclick="copyOffer()">📋 Копировать</button><span id="offer-ok" class="g small"></span></div>
+    <div class="hint">Существующие методы — реальная ставка мерча. Новые — «по согласованию» (наценку не показываем).</div>`);
+}
+function copyOffer(){const t=document.getElementById('offer-text');t.select();
+  (navigator.clipboard?navigator.clipboard.writeText(t.value):Promise.reject()).then(()=>document.getElementById('offer-ok').textContent='✓ скопировано').catch(()=>{document.execCommand('copy');document.getElementById('offer-ok').textContent='✓ скопировано';});}
+function exportReport(){
+  const r=window._rep; if(!r)return; const o=r.overview;
+  let csv='Метрика;Значение\n';
+  csv+='Оборот 7д;'+o.turnover+'\nЗаявок;'+o.total+'\nКонверсия;'+o.conv+'%\nМерчей;'+o.merchants+'\nОбъём WoW;'+(o.dvol==null?'':o.dvol+'%')+'\n';
+  csv+='\nМерч;Оборот;Конверсия;Заявки\n';
+  r.top.forEach(m=>{csv+=(m.name||'').replace(/;/g,',')+';'+m.turnover+';'+m.conv+'%;'+m.total+'\n';});
+  csv+='\nДопродаж;'+r.opp_cross+'\nЭндпоинтов без ставки;'+r.opp_unset+'\n';
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='ops-report.csv'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function loadScore(){
+  const g=document.getElementById('score-grid'); g.innerHTML='<div class="mut">Загрузка…</div>';
+  const d=await api('/api/gate-scorecard?days='+PERIOD);
+  const max=Math.max(1,...d.gates.map(x=>x.total));
+  g.innerHTML=`<div class="small mut" style="margin-bottom:8px">Какой провайдер сейчас лучший по конверсии и объёму (латентности в данных нет).</div>
+    <table><tr><th>Гейт</th><th>Заявки</th><th>Оплаты</th><th>Конверсия</th><th>Объём</th></tr>`+
+    (d.gates.map(x=>{const cc=x.conv>=40?'g':x.conv>=20?'y':'r';const w=Math.round(x.total/max*100);
+      return `<tr><td>🏦 ${esc(x.gate)}</td><td>${fmt(x.total)}</td><td>${fmt(x.success)}</td>
+        <td class="${cc}"><b>${x.conv}%</b></td><td><div class="bar"><div style="width:${w}%"></div></div></td></tr>`}).join('')||'<tr><td class="mut">нет трафика</td></tr>')+`</table>`;
+}
+async function loadMatrix(){
+  const w=document.getElementById('matrix-wrap'); w.innerHTML='<div class="mut">Загрузка…</div>';
+  const d=await api('/api/method-matrix?days='+PERIOD);
+  const head=d.categories.map(c=>`<th style="text-align:center">${esc(c)}</th>`).join('');
+  const rows=d.rows.map(r=>`<tr><td><b>${esc(r.name)}</b></td>${r.cells.map(c=>`<td style="text-align:center">${c?'<span class="g">✅</span>':'<span class="mut">·</span>'}</td>`).join('')}</tr>`).join('');
+  w.innerHTML=`<div class="small mut" style="margin-bottom:8px">✅ подключено · «·» = белое пятно (есть в каталоге — можно продать)</div>
+    <table><tr><th>Мерч</th>${head}</tr>${rows||'<tr><td class="mut">нет мерчей</td></tr>'}</table>`;
+}
+const METHOD_EMOJI={'SBP':'💳','QR NSPK':'📱','Card/C2C':'💳','Transborder':'🌍','Havale':'🌍','Ecom':'🛒'};
+async function loadCatalog(){
+  const g=document.getElementById('catalog-grid'); g.innerHTML='<div class="mut">Загрузка…</div>';
+  const d=await api('/api/method-catalog?days='+PERIOD);
+  g.innerHTML='';
+  d.categories.forEach(c=>{
+    const em=METHOD_EMOJI[c.cat]||'💠';
+    const provs=c.providers.length?c.providers.map(p=>`<span class="pill g">${esc(p.gate)} <b>${esc(p.rate)}</b></span>`).join(''):'<span class="mut small">ставки провайдеров не заданы</span>';
+    const have=c.have.length?c.have.map(esc).join(', '):'—';
+    const sell=c.sell.length?c.sell.map(n=>`<span class="pill y">🎯 ${esc(n)}</span>`).join(''):'<span class="mut small">все подключены</span>';
+    const el=document.createElement('div'); el.className='card';
+    el.innerHTML=`<h3>${em} ${esc(c.cat)}</h3>
+      <div class="small mut">Провайдеры (ставка гейта, лучшая сверху):</div>
+      <div style="margin:4px 0 10px">${provs}</div>
+      <div class="row"><span class="k">✅ Льют (${c.have.length})</span><span class="small" style="text-align:right">${have}</span></div>
+      <div class="small mut" style="margin-top:8px">🎯 Можно продать (${c.sell.length}):</div>
+      <div style="margin-top:4px">${sell}</div>`;
+    g.appendChild(el);
+  });
+  if(!d.categories.length)g.innerHTML='<div class="mut">Нет данных.</div>';
+}
+async function loadMerch(){
+  loadKpi();
+  const g=document.getElementById('merch-grid'); g.innerHTML='<div class="mut">Загрузка…</div>';
+  let d; try{ d=await api('/api/merchants?days='+PERIOD); }
+  catch(e){ g.innerHTML='<div class="r">⚠️ Не загрузилось ('+esc(e.message)+'). Нажмите 🔄 Обновить.</div>'; return; }
+  ALL_MERCH=d.merchants||[];
+  document.getElementById('merch-status').textContent=d.ok?(ALL_MERCH.length+' мерчей льют'):'⚠️ реплика недоступна';
+  renderMerch();
+  stamp();
+}
+function renderMerch(){
+  const g=document.getElementById('merch-grid'); if(!g)return;
+  const q=((document.getElementById('merch-search')||{}).value||'').toLowerCase();
+  const sort=(document.getElementById('merch-sort')||{}).value||'turnover';
+  let list=ALL_MERCH.filter(m=>(m.name||'').toLowerCase().includes(q));
+  if(sort==='risk')list.sort((a,b)=>((b.risk?1:0)-(a.risk?1:0))||(b.turnover-a.turnover));
+  else list.sort((a,b)=>(b[sort]||0)-(a[sort]||0));
+  g.innerHTML='';
+  list.forEach(m=>{
+    const conv=m.conv, cc=conv>=40?'g':conv>=20?'y':'r';
+    const el=document.createElement('div'); el.className='card click'+(m.risk?' risk':'');
+    el.innerHTML=`<h3>🏪 ${esc(m.name)} ${m.risk?'<span class="pill r">🚩 риск</span>':''}</h3>
+      <div class="row"><span class="k">Заявки</span><b>${fmt(m.total)}</b></div>
+      <div class="row"><span class="k">Выдача</span><b>${fmt(m.issued)}</b></div>
+      <div class="row"><span class="k">Оплаты</span><b>${fmt(m.success)}</b></div>
+      <div class="row"><span class="k">Конверсия</span><b class="${cc}">${conv}%</b></div>
+      <div class="row"><span class="k">Оборот ₽</span><b class="big">${fmt(m.turnover)}</b></div>
+      ${m.risk?'<div class="small r" style="margin-top:6px">⚠️ '+esc(m.risk_reason)+'</div>':''}`;
+    el.onclick=()=>openMerch(m);
+    g.appendChild(el);
+  });
+  if(!list.length)g.innerHTML='<div class="mut">'+(ALL_MERCH.length?'Ничего не найдено.':'За период нет проливающих мерчей.')+'</div>';
+}
+
+async function openMerch(m){
+  sheet(`<h2>🏪 ${esc(m.name)} <span class="mut small">· ${PERIOD===1?'сутки':PERIOD+'д'}</span></h2><div class="mut">Загрузка…</div>`);
+  const d=await api('/api/merchant/'+m.mid+'?days='+PERIOD);
+  const eps=d.endpoints.map(e=>`<tr><td>${esc(e.endpoint)}</td>
+    <td>${e.is_set?'<span class="g">'+e.percent+'%'+(e.fix?(' +'+e.fix):'')+'</span>':'<span class="mut">⚪ не проставлена</span>'}</td>
+    <td>${e.active?'<span class="pill g">активен</span>':'<span class="pill">выкл</span>'}</td></tr>`).join('');
+  const gates=d.gates.map(x=>`<span class="pill">${esc(x.gate)} · ${fmt(x.total)} (${x.success} опл)</span>`).join('')||'<span class="mut">—</span>';
+  const decl=(d.declines||[]).map(x=>`<tr><td>${x.emoji} <code>${esc(x.code)}</code></td><td class="mut">${esc(x.label)}</td><td><b>${fmt(x.cnt)}</b></td></tr>`).join('');
+  const methods=[...new Set(d.endpoints.map(e=>e.method).filter(x=>x&&x!=='—'))];
+  const mchips=methods.map(x=>`<span class="pill">${esc(x)}</span>`).join('')||'<span class="mut">—</span>';
+  const offer=d.offer||{have:[],gap:[],unset:[]};
+  const gap=offer.gap.map(x=>`<div class="small" style="margin:3px 0">🔹 <b>${esc(x.cat)}</b> <span class="mut">— есть у: ${x.gates.map(esc).join(', ')}</span></div>`).join('');
+  const unset=offer.unset.map(u=>`<span class="pill y">${esc(u.endpoint)}</span>`).join('');
+  const mconv=(d.method_conv||[]).map(x=>{const cc=x.conv>=40?'g':x.conv>=20?'y':'r';return `<tr><td>${esc(x.method)}</td><td>${fmt(x.total)}</td><td class="${cc}"><b>${x.conv}%</b></td></tr>`}).join('');
+  window._mcur={m:m,d:d};
+  const spark=(d.conv_trend||[]).map(x=>{const h=Math.max(2,Math.round(x.conv*0.5)),cc=x.conv>=40?'var(--ok)':x.conv>=20?'var(--warn)':'var(--red)';return `<span title="${x.date}: ${x.conv}%" style="display:inline-block;width:8px;height:${h}px;background:${cc};margin-right:2px;vertical-align:bottom"></span>`}).join('');
+  sheet(`<div class="flex" style="justify-content:space-between"><h2>🏪 ${esc(m.name)} ${m.risk?'<span class="pill r">🚩 риск</span>':''}</h2>
+      <div class="flex"><button class="acc" onclick="genOffer()">📋 Оффер</button><button class="ghost" onclick="closeSheet()">✕</button></div></div>
+    ${m.risk?'<div class="small r">⚠️ '+esc(m.risk_reason)+'</div>':''}
+    <div class="row"><span class="k">Заявки / Оплаты / Конверсия</span><b>${fmt(m.total)} / ${fmt(m.success)} / ${m.conv}%</b></div>
+    <div class="row"><span class="k">Оборот</span><b>${fmt(m.turnover)} ₽</b></div>
+    ${spark?'<div style="margin:10px 0"><div class="small mut">📉 Конверсия по дням (14д):</div><div style="margin-top:4px">'+spark+'</div></div>':''}
+    <h3 style="margin-top:16px">💳 Методы (${methods.length})</h3><div>${mchips}</div>
+    <div class="sell">
+      <div style="font-weight:700">🔥 Что ещё можно продать</div>
+      ${gap||'<div class="small mut">все ключевые категории подключены</div>'}
+      ${unset?'<div class="small mut" style="margin-top:6px">⚪ Заведено, но ставка не проставлена (продай/проставь):</div><div>'+unset+'</div>':''}
+    </div>
+    <h3 style="margin-top:16px">🩹 Конверсия по методам</h3>
+    <table><tr><th>Метод</th><th>Заявки</th><th>Конверсия</th></tr>${mconv||'<tr><td class="mut">нет данных</td></tr>'}</table>
+    <h3 style="margin-top:16px">❌ Почему не платят (отказы)</h3>
+    <table><tr><th>Код</th><th>Категория</th><th>Кол-во</th></tr>${decl||'<tr><td class="mut">нет отказов</td></tr>'}</table>
+    <h3 style="margin-top:16px">📍 Эндпоинты и оффер (ставка с мерча)</h3>
+    <table><tr><th>Эндпоинт</th><th>Ставка</th><th></th></tr>${eps||'<tr><td class="mut">нет эндпоинтов</td></tr>'}</table>
+    <h3 style="margin-top:16px">🏦 Реальные провайдеры по трафику</h3><div>${gates}</div>
+    <h3 style="margin-top:16px">📝 Заметки</h3>
+    <div id="merch-notes"><span class="mut small">загрузка…</span></div>
+    <div class="flex" style="margin-top:8px"><input id="note-input" placeholder="заметка (договорённость, что сделал…)" onkeydown="if(event.key==='Enter')addNote('${esc(m.mid)}')" style="max-width:420px"><button onclick="addNote('${esc(m.mid)}')">+ Заметка</button></div>`);
+  loadNotes(m.mid);
+}
+
+async function loadProv(){
+  const g=document.getElementById('prov-grid');
+  if(PROVIDERS.length){renderProv();return;}
+  g.innerHTML='<div class="mut">Загрузка…</div>';
+  PROVIDERS=(await api('/api/providers')).providers; renderProv();
+}
+function renderProv(){
+  const g=document.getElementById('prov-grid'); g.innerHTML='';
+  PROVIDERS.forEach(p=>{
+    const meth=(p.methods||[]).map(m=>`<span class="pill g">${esc(m)}</span>`).join('')||'<span class="mut small">—</span>';
+    const act=p.terminals.filter(t=>t.active).length;
+    const el=document.createElement('div'); el.className='card click';
+    el.innerHTML=`<h3>🏦 ${esc(p.gate)}</h3>
+      <div class="small mut">Методы (${(p.methods||[]).length}) — что можно продавать:</div>
+      <div style="margin:5px 0 8px">${meth}</div>
+      <div class="row"><span class="k">Терминалов</span><b>${p.terminals.length} <span class="mut small">(${act} актив.)</span></b></div>`;
+    el.onclick=()=>openProvider(p.gate);
+    g.appendChild(el);
+  });
+}
+
+async function openProvider(gate){
+  sheet(`<h2>🏦 ${esc(gate)}</h2><div class="mut">Загрузка…</div>`);
+  const d=await api('/api/provider?gate='+encodeURIComponent(gate));
+  const meth=(d.methods||[]).map(m=>`<span class="pill g">${esc(m)}</span>`).join('')||'<span class="mut">—</span>';
+  const terms=d.terminals.map(t=>`<tr><td>${esc(t.name)}</td><td class="mut">${esc(t.method)}</td>
+    <td>${t.min_amount||t.max_amount?(fmt(t.min_amount)+'–'+fmt(t.max_amount)):'—'}</td>
+    <td>${t.active?'<span class="pill g">актив</span>':'<span class="pill">выкл</span>'}</td></tr>`).join('');
+  const tr=d.traffic.map(x=>`<span class="pill">${esc(x.merchant)} · ${fmt(x.total)} (${x.success} опл)</span>`).join('')||'<span class="mut">сегодня без трафика</span>';
+  sheet(`<div class="flex" style="justify-content:space-between"><h2>🏦 ${esc(gate)}</h2><button class="ghost" onclick="closeSheet()">✕</button></div>
+    <h3 style="margin-top:8px">💳 Методы (${(d.methods||[]).length}) — что можно продавать мерчам</h3><div>${meth}</div>
+    <h3 style="margin-top:16px">🔁 Кто льёт сегодня</h3><div>${tr}</div>
+    <h3 style="margin-top:16px">🖥 Терминалы (${d.terminals.length})</h3>
+    <table><tr><th>Терминал</th><th>Метод</th><th>Коридор ₽</th><th></th></tr>${terms||'<tr><td class="mut">нет</td></tr>'}</table>`);
+}
+
+async function loadConstr(){
+  const g=document.getElementById('constr-list'); g.innerHTML='<div class="mut">Загрузка…</div>';
+  if(!PROVIDERS.length){try{PROVIDERS=(await api('/api/providers')).providers}catch(e){}}
+  if(!LIVE_MERCHANTS.length){try{LIVE_MERCHANTS=(await api('/api/merchant-list')).merchants}catch(e){}}
+  try{const md=await api('/api/merchants?days=1'); LIVE_STATS={}; md.merchants.forEach(x=>LIVE_STATS[x.mid]=x);}catch(e){}
+  const d=await api('/api/tracked'); g.innerHTML='';
+  if(!d.tracked.length){g.innerHTML='<div class="mut">Пока никого. Заведи мерча на интеграцию выше.</div>';}
+  d.tracked.forEach(m=>{
+    const sold=(m.sold||[]).map(s=>`<span class="pill y">${esc(s)}</span>`).join('')||'<span class="mut small">методы не выбраны</span>';
+    const tl=(m.journey||[]).slice(-4).map(e=>`<div class="ev"><span class="t">${new Date(e.ts*1000).toLocaleDateString('ru-RU')}</span> ${esc(e.text)}</div>`).join('');
+    const st=m.merchant_id&&LIVE_STATS[m.merchant_id];
+    const live=st?`<div style="margin:4px 0 8px"><span class="live">🟢 льёт: ${fmt(st.turnover)}₽ · конв ${st.conv}%</span></div>`
+      :(m.merchant_id?'<div class="small mut">🔗 связан, но сегодня без трафика</div>':'<div class="small mut">⚪ не связан с живым мерчем</div>');
+    const el=document.createElement('div'); el.className='card';
+    el.innerHTML=`<h3>🧩 ${esc(m.name)} <span class="badge b-${m.stage}">${m.stage}</span></h3>
+      ${live}
+      <div class="small mut">Проданные методы:</div><div style="margin:4px 0 8px">${sold}</div>
+      <div class="timeline">${tl||'<span class="mut small">нет событий</span>'}</div>
+      <div class="flex" style="margin-top:8px">
+        <button class="ghost small" onclick='editTracked(${m.id})'>⚙️ Вести</button>
+      </div>`;
+    g.appendChild(el);
+  });
+}
+
+async function addTracked(){
+  const name=document.getElementById('new-name').value.trim();
+  if(!name)return;
+  const stage=document.getElementById('new-stage').value;
+  await api('/api/tracked','POST',{name,stage});
+  document.getElementById('new-name').value=''; loadConstr();
+}
+
+async function editTracked(id){
+  const d=await api('/api/tracked'); const m=d.tracked.find(x=>x.id===id); if(!m)return;
+  const allMethods=[]; PROVIDERS.forEach(p=>p.terminals.forEach(t=>allMethods.push(p.gate+' · '+t.name)));
+  const opts=allMethods.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+  const soldChips=(m.sold||[]).map((s,i)=>`<span class="pill y">${esc(s)} <a onclick="rmSold(${id},${i})" style="cursor:pointer">✕</a></span>`).join('')||'<span class="mut small">пусто</span>';
+  sheet(`<div class="flex" style="justify-content:space-between"><h2>🧩 ${esc(m.name)}</h2><button class="ghost" onclick="closeSheet()">✕</button></div>
+    <div class="flex"><span class="mut small">Стадия:</span>
+      <select id="ed-stage" onchange="setStage(${id},this.value)">
+        ${['lead','integration','live','paused'].map(s=>`<option ${s===m.stage?'selected':''}>${s}</option>`).join('')}
+      </select></div>
+    <div class="flex" style="margin-top:8px"><span class="mut small">🔗 Живой мерч:</span>
+      <select id="ed-link" onchange="linkMerchant(${id},this.value)" style="max-width:300px">
+        <option value="">— не связан —</option>
+        ${LIVE_MERCHANTS.map(x=>`<option value="${esc(x.mid)}" ${x.mid===m.merchant_id?'selected':''}>${esc(x.name)}</option>`).join('')}
+      </select></div>
+    <div class="hint">Свяжи с реальным мерчем из Core — в карточку подтянутся живые цифры (оборот/конверсия).</div>
+    <h3 style="margin-top:14px">💳 Проданные методы</h3>
+    <div style="margin-bottom:8px">${soldChips}</div>
+    <div class="flex"><select id="ed-method" style="max-width:360px">${opts}</select>
+      <button class="acc" onclick="addSold(${id})">+ Продать метод</button></div>
+    <div class="hint">Список — из реального каталога провайдеров (что у нас есть).</div>
+    <h3 style="margin-top:16px">🧭 Путь интеграции</h3>
+    <div class="timeline">${(m.journey||[]).map(e=>`<div class="ev"><span class="t">${new Date(e.ts*1000).toLocaleString('ru-RU')}</span> ${esc(e.text)}</div>`).join('')||'<span class="mut small">нет событий</span>'}</div>
+    <div class="flex" style="margin-top:8px"><input id="ed-ev" placeholder="что произошло (напр. «выдали доступы», «прошёл тест 1₽»)"><button onclick="addEv(${id})">+ Событие</button></div>
+    <div style="margin-top:16px"><button class="ghost small r" onclick="delTracked(${id})">Удалить</button></div>`);
+  window._m=m;
+}
+async function setStage(id,v){await api('/api/tracked/'+id,'PATCH',{stage:v});loadConstr();}
+async function linkMerchant(id,mid){await api('/api/tracked/'+id,'PATCH',{merchant_id:mid});
+  if(mid){const nm=(LIVE_MERCHANTS.find(x=>x.mid===mid)||{}).name||mid;await api('/api/tracked/'+id+'/journey','POST',{text:'Связан с живым мерчем: '+nm});}
+  editTracked(id);loadConstr();}
+async function addSold(id){const v=document.getElementById('ed-method').value;const m=window._m;const sold=(m.sold||[]).slice();
+  if(!sold.includes(v)){sold.push(v);await api('/api/tracked/'+id+'/sold','POST',{sold});await api('/api/tracked/'+id+'/journey','POST',{text:'Продан метод: '+v});}editTracked(id);loadConstr();}
+async function rmSold(id,i){const m=window._m;const sold=(m.sold||[]).slice();sold.splice(i,1);await api('/api/tracked/'+id+'/sold','POST',{sold});editTracked(id);loadConstr();}
+async function addEv(id){const t=document.getElementById('ed-ev').value.trim();if(!t)return;await api('/api/tracked/'+id+'/journey','POST',{text:t});editTracked(id);loadConstr();}
+async function delTracked(id){if(!confirm('Удалить мерча из трекинга?'))return;await api('/api/tracked/'+id,'DELETE');closeSheet();loadConstr();}
+
+function sheet(html){document.getElementById('sheet').innerHTML=html;document.getElementById('modal').classList.add('on');}
+function closeSheet(){document.getElementById('modal').classList.remove('on');}
+document.getElementById('modal').onclick=(e)=>{if(e.target.id==='modal')closeSheet();};
+function esc(s){return (s==null?'':''+s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+start();
+</script>
+</body>
+</html>

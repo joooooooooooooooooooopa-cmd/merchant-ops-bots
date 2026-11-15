@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.session
+*.session-journal
+*.key
+*.pem
+cookie.txt
+
+# Local data and state (never commit real data)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite*
+*_keys.json
+*_state.json
+access_keys.json
+audit_log.json
+notes.json
+integration.json
+reminders.json
+sent_alerts.json
+api_spec.json
+test_endpoints.json
+bdm_rates.md
+chats.md
+*.xlsx
+*.csv
+*.log
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
